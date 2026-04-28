@@ -1,0 +1,22 @@
+{
+  "name": "devflow-ai-infra",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "cdk": "cdk",
+    "cdk:synth": "cdk synth",
+    "cdk:diff":  "cdk diff",
+    "cdk:deploy": "cdk deploy --all",
+    "typecheck":  "tsc --noEmit"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "aws-cdk": "^2.170.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0"
+  }
+}

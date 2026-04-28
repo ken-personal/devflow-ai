@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+jobs:
+  # ─── バックエンド (Node.js) ──────────────────────────────
+  backend:
+    name: Backend — Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test -- --coverage --ci
+        env:
+          CI: true
+
+  # ─── フロントエンド (React / Vite) ──────────────────────
+  frontend:
+    name: Frontend — Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ''
+          VITE_COGNITO_DOMAIN: 'https://placeholder.auth.ap-northeast-1.amazoncognito.com'
+          VITE_COGNITO_CLIENT_ID: 'placeholder'
+
+  # ─── Python AI Lambda ────────────────────────────────────
+  python:
+    name: Python — Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: src/functions/ai/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-cov
+          pip install -r src/functions/ai/requirements.txt
+
+      - name: Lint (ruff)
+        run: |
+          pip install ruff
+          ruff check src/functions/ai/ --ignore E501
+
+      - name: Tests
+        working-directory: src/functions/ai
+        run: pytest tests/ -v --tb=short --cov=. --cov-report=term-missing
+
+  # ─── CDK (TypeScript) ────────────────────────────────────
+  cdk:
+    name: CDK — Synth check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: infra/package-lock.json
+
+      - name: Install CDK dependencies
+        working-directory: infra
+        run: npm ci
+
+      - name: Type check
+        working-directory: infra
+        run: npm run typecheck
+
+      - name: CDK Synth (dev)
+        working-directory: infra
+        run: npx cdk synth --context env=dev --no-staging
+        env:
+          # ダミー認証情報（synthのみ: 実際のAWSアクセス不要）
+          AWS_ACCESS_KEY_ID: dummy
+          AWS_SECRET_ACCESS_KEY: dummy
+          AWS_DEFAULT_REGION: ap-northeast-1

@@ -1,0 +1,164 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Deploy environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, stg, prod]
+
+env:
+  AWS_REGION: ap-northeast-1
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.13'
+
+jobs:
+  # ─── CI チェック（deploy前に必ずpass） ──────────────────
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  # ─── バックエンドビルド ────────────────────────────────
+  build-backend:
+    name: Build Backend
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dist
+          path: dist/
+          retention-days: 1
+
+  # ─── フロントエンドビルド ──────────────────────────────
+  build-frontend:
+    name: Build Frontend
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.env || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_URL:           ${{ secrets.VITE_API_URL }}
+          VITE_COGNITO_DOMAIN:    ${{ secrets.VITE_COGNITO_DOMAIN }}
+          VITE_COGNITO_CLIENT_ID: ${{ secrets.VITE_COGNITO_CLIENT_ID }}
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 1
+
+  # ─── CDK デプロイ ─────────────────────────────────────
+  deploy-infra:
+    name: CDK Deploy
+    needs: [build-backend]
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.env || 'dev' }}
+    permissions:
+      id-token: write   # OIDC
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-dist
+          path: dist/
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: infra/package-lock.json
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume:    ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region:        ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-DevFlow
+
+      - name: Install CDK
+        working-directory: infra
+        run: npm ci
+
+      - name: CDK Deploy
+        working-directory: infra
+        run: |
+          ENV=${{ github.event.inputs.env || 'dev' }}
+          npx cdk deploy --all \
+            --context env=$ENV \
+            --require-approval never \
+            --outputs-file cdk-outputs.json
+          echo "CDK_OUTPUTS=$(cat cdk-outputs.json | jq -c .)" >> $GITHUB_ENV
+
+  # ─── フロントエンド S3 デプロイ ──────────────────────
+  deploy-frontend:
+    name: Deploy Frontend to S3
+    needs: deploy-infra
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.env || 'dev' }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend-dist/
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume:    ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region:        ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-DevFlow-Frontend
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync frontend-dist/ s3://${{ secrets.FRONTEND_S3_BUCKET }}/ \
+            --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html"
+          # index.html はキャッシュさせない（SPA ルーティング）
+          aws s3 cp frontend-dist/index.html s3://${{ secrets.FRONTEND_S3_BUCKET }}/index.html \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"

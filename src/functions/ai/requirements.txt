@@ -1,0 +1,6 @@
+langgraph==0.2.55
+langchain-aws==0.2.10
+langchain-core==0.3.29
+pydantic==2.10.4
+boto3==1.35.99
+aws-lambda-powertools==3.3.0

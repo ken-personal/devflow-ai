@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.js.map
+cdk.out/
+.DS_Store
+coverage/
+__pycache__/
+*.pyc
+.venv/
