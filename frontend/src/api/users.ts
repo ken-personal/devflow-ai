@@ -24,11 +24,7 @@ export interface UpdateMemberInput {
 
 export const usersApi = {
   list(): Promise<Member[]> {
-    return apiClient.get('/users').then(r => r.data);
-  },
-
-  get(userId: string): Promise<Member> {
-    return apiClient.get(`/users/${userId}`).then(r => r.data);
+    return apiClient.get('/users').then(r => (r.data as { items: Member[] }).items);
   },
 
   create(input: CreateMemberInput): Promise<Member> {
@@ -40,10 +36,10 @@ export const usersApi = {
   },
 
   disable(userId: string): Promise<void> {
-    return apiClient.post(`/users/${userId}/disable`).then(r => r.data);
+    return apiClient.put(`/users/${userId}`, { is_active: false }).then(() => undefined);
   },
 
   enable(userId: string): Promise<void> {
-    return apiClient.post(`/users/${userId}/enable`).then(r => r.data);
+    return apiClient.put(`/users/${userId}`, { is_active: true }).then(() => undefined);
   },
 };

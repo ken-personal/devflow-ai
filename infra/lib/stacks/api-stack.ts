@@ -29,6 +29,7 @@ const BASE_ENV      = (props: Props) => ({
 
 export class DevFlowApiStack extends cdk.Stack {
   public readonly api: apigateway.RestApi;
+  public readonly authorizer: apigateway.CognitoUserPoolsAuthorizer;
   public readonly functions: Record<string, lambda.Function> = {};
 
   constructor(scope: Construct, id: string, props: Props) {
@@ -172,13 +173,13 @@ export class DevFlowApiStack extends cdk.Stack {
     });
 
     // JWT Authorizer（Cognito）
-    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'JwtAuthorizer', {
+    this.authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'JwtAuthorizer', {
       cognitoUserPools: [props.authStack.userPool],
       authorizerName: 'CognitoJwtAuthorizer',
       identitySource: 'method.request.header.Authorization',
     });
     const authOpts: apigateway.MethodOptions = {
-      authorizer,
+      authorizer: this.authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     };
 

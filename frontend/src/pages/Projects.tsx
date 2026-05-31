@@ -4,25 +4,26 @@ import { useAuth } from '../contexts/AuthContext';
 import { projectsApi, type Project, type CreateProjectInput, type UpdateProjectInput } from '../api/projects';
 
 const STATUS_LABELS: Record<Project['status'], string> = {
-  planning:  '計画中',
-  active:    '進行中',
-  on_hold:   '保留',
-  completed: '完了',
-  cancelled: 'キャンセル',
+  planning: '計画中',
+  active:   '進行中',
+  review:   'レビュー中',
+  hold:     '保留',
+  delayed:  '遅延',
 };
 
 const STATUS_COLORS: Record<Project['status'], string> = {
-  planning:  'bg-gray-100 text-gray-600',
-  active:    'bg-blue-100 text-blue-700',
-  on_hold:   'bg-yellow-100 text-yellow-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-500',
+  planning: 'bg-gray-100 text-gray-600',
+  active:   'bg-blue-100 text-blue-700',
+  review:   'bg-purple-100 text-purple-700',
+  hold:     'bg-yellow-100 text-yellow-700',
+  delayed:  'bg-red-100 text-red-500',
 };
 
 type ModalMode = 'create' | 'edit' | null;
 
 interface ProjectFormState {
   name: string;
+  client_name: string;
   description: string;
   status: Project['status'];
   start_date: string;
@@ -31,18 +32,19 @@ interface ProjectFormState {
 }
 
 const defaultForm: ProjectFormState = {
-  name: '', description: '', status: 'planning',
+  name: '', client_name: '', description: '', status: 'planning',
   start_date: '', end_date: '', budget: '',
 };
 
 function projectToForm(p: Project): ProjectFormState {
   return {
     name: p.name,
-    description: p.description,
+    client_name: p.client_name,
+    description: p.description ?? '',
     status: p.status,
     start_date: p.start_date,
     end_date: p.end_date,
-    budget: String(p.budget),
+    budget: p.budget != null ? String(p.budget) : '',
   };
 }
 
@@ -100,10 +102,12 @@ export default function Projects() {
       if (modalMode === 'create') {
         const input: CreateProjectInput = {
           name: form.name,
-          description: form.description,
+          client_name: form.client_name,
+          description: form.description || undefined,
+          status: form.status,
           start_date: form.start_date,
           end_date: form.end_date,
-          budget,
+          budget: budget || undefined,
         };
         await projectsApi.create(input);
       } else if (editing) {
@@ -203,7 +207,7 @@ export default function Projects() {
                   </td>
                   <td className="px-5 py-3 text-gray-500">{p.start_date}</td>
                   <td className="px-5 py-3 text-gray-500">{p.end_date}</td>
-                  <td className="px-5 py-3 text-gray-500">¥{p.budget.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-gray-500">{p.budget != null ? `¥${p.budget.toLocaleString()}` : '-'}</td>
                   {isAdminOrManager && (
                     <td className="px-5 py-3">
                       <div className="flex gap-2 justify-end">
@@ -255,6 +259,17 @@ export default function Projects() {
               </div>
 
               <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">クライアント名 *</label>
+                <input
+                  required
+                  value={form.client_name}
+                  onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="株式会社〇〇"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">説明</label>
                 <textarea
                   rows={3}
@@ -264,20 +279,18 @@ export default function Projects() {
                 />
               </div>
 
-              {modalMode === 'edit' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">ステータス</label>
-                  <select
-                    value={form.status}
-                    onChange={e => setForm(f => ({ ...f, status: e.target.value as Project['status'] }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {(Object.keys(STATUS_LABELS) as Project['status'][]).map(s => (
-                      <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">ステータス</label>
+                <select
+                  value={form.status}
+                  onChange={e => setForm(f => ({ ...f, status: e.target.value as Project['status'] }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {(Object.keys(STATUS_LABELS) as Project['status'][]).map(s => (
+                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                  ))}
+                </select>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

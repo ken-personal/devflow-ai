@@ -23,7 +23,7 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 
 function statusLabel(s: Task['status']): string {
   const map: Record<Task['status'], string> = {
-    todo: 'TODO', in_progress: '進行中', review: 'レビュー', done: '完了', cancelled: 'キャンセル',
+    todo: 'TODO', in_progress: '進行中', review: 'レビュー', done: '完了',
   };
   return map[s];
 }
@@ -34,14 +34,13 @@ function statusColor(s: Task['status']): string {
     in_progress: 'bg-blue-100 text-blue-700',
     review: 'bg-yellow-100 text-yellow-700',
     done: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-600',
   };
   return map[s];
 }
 
 function priorityColor(p: Task['priority']): string {
   const map: Record<Task['priority'], string> = {
-    low: 'text-gray-400', medium: 'text-blue-500', high: 'text-orange-500', critical: 'text-red-600',
+    low: 'text-gray-400', medium: 'text-blue-500', high: 'text-orange-500',
   };
   return map[p];
 }

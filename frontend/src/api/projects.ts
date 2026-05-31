@@ -3,12 +3,12 @@ import apiClient from './client';
 export interface Project {
   project_id: string;
   name: string;
-  description: string;
-  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
+  client_name: string;
+  description?: string;
+  status: 'planning' | 'active' | 'review' | 'hold' | 'delayed';
   start_date: string;
   end_date: string;
-  budget: number;
-  created_by: string;
+  budget?: number;
   created_at: string;
   updated_at: string;
 }
@@ -23,10 +23,12 @@ export interface ProjectAssignee {
 
 export interface CreateProjectInput {
   name: string;
-  description: string;
+  client_name: string;
+  description?: string;
+  status: Project['status'];
   start_date: string;
   end_date: string;
-  budget: number;
+  budget?: number;
   assignee_ids?: string[];
 }
 

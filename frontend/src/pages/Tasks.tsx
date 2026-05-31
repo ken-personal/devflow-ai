@@ -5,20 +5,19 @@ import { tasksApi, type Task, type CreateTaskInput, type UpdateTaskInput, type C
 import { projectsApi, type Project } from '../api/projects';
 
 const STATUS_LABELS: Record<Task['status'], string> = {
-  todo: 'TODO', in_progress: '進行中', review: 'レビュー', done: '完了', cancelled: 'キャンセル',
+  todo: 'TODO', in_progress: '進行中', review: 'レビュー', done: '完了',
 };
 const STATUS_COLORS: Record<Task['status'], string> = {
   todo: 'bg-gray-100 text-gray-600',
   in_progress: 'bg-blue-100 text-blue-700',
   review: 'bg-yellow-100 text-yellow-700',
   done: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-500',
 };
 const PRIORITY_LABELS: Record<Task['priority'], string> = {
-  low: '低', medium: '中', high: '高', critical: '緊急',
+  low: '低', medium: '中', high: '高',
 };
 const PRIORITY_COLORS: Record<Task['priority'], string> = {
-  low: 'text-gray-400', medium: 'text-blue-500', high: 'text-orange-500', critical: 'text-red-600',
+  low: 'text-gray-400', medium: 'text-blue-500', high: 'text-orange-500',
 };
 
 type ModalMode = 'create' | 'detail' | null;

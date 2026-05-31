@@ -85,8 +85,8 @@ export class DevFlowAiStack extends cdk.Stack {
 
     // ─── API Gateway に AI エンドポイントを追加 ────────────
     const authOpts: apigateway.MethodOptions = {
+      authorizer: props.apiStack.authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
-      // 既存 Authorizer を参照（ApiStack 側で定義済み）
     };
 
     const v1 = props.apiStack.api.root.getResource('api')!.getResource('v1')!;

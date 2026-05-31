@@ -5,12 +5,11 @@ export interface Task {
   project_id: string;
   title: string;
   description: string;
-  status: 'todo' | 'in_progress' | 'review' | 'done' | 'cancelled';
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'todo' | 'in_progress' | 'review' | 'done';
+  priority: 'high' | 'medium' | 'low';
   assignee_id: string;
   assignee_name?: string;
   due_date: string;
-  created_by: string;
   created_at: string;
   updated_at: string;
 }
