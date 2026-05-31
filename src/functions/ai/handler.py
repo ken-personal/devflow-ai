@@ -122,13 +122,17 @@ def handle_chat(event: dict) -> dict:
         )
 
         # エージェントステップをSSEに変換
-        for i, msg in enumerate(result["messages"]):
+        step_num = 0
+        for msg in result["messages"]:
             if hasattr(msg, "tool_calls") and msg.tool_calls:
                 for tc in msg.tool_calls:
+                    step_num += 1
                     sse_chunks.append(_sse("agent_step", {
-                        "step": tc["name"],
-                        "status": "done",
-                        "label": _tool_label(tc["name"]),
+                        "type": "agent_step",
+                        "data": {
+                            "step": step_num,
+                            "tool": _tool_label(tc["name"]),
+                        },
                     }))
 
         # 最終応答テキスト抽出
@@ -145,19 +149,31 @@ def handle_chat(event: dict) -> dict:
         # テキストを50文字単位でストリーミング形式に分割
         chunk_size = 50
         for i in range(0, len(full_response), chunk_size):
-            sse_chunks.append(_sse("text_chunk", {"chunk": full_response[i:i + chunk_size]}))
+            sse_chunks.append(_sse("text_chunk", {
+                "type": "text_chunk",
+                "data": {"text": full_response[i:i + chunk_size]},
+            }))
 
         message_id = str(uuid4())
         sse_chunks.append(_sse("done", {
-            "session_id": session_id,
-            "message_id": message_id,
-            "total_tokens": len(message) + len(full_response),
+            "type": "done",
+            "data": {
+                "session_id": session_id,
+                "message_id": message_id,
+                "total_tokens": len(message) + len(full_response),
+            },
         }))
 
     except TimeoutError:
-        sse_chunks.append(_sse("error", {"code": "BEDROCK_TIMEOUT", "message": "AI処理がタイムアウトしました"}))
+        sse_chunks.append(_sse("error", {
+            "type": "error",
+            "data": {"code": "BEDROCK_TIMEOUT", "message": "AI処理がタイムアウトしました"},
+        }))
     except Exception as e:
-        sse_chunks.append(_sse("error", {"code": "INTERNAL_ERROR", "message": str(e)}))
+        sse_chunks.append(_sse("error", {
+            "type": "error",
+            "data": {"code": "INTERNAL_ERROR", "message": str(e)},
+        }))
 
     # ⑥ 会話履歴を DynamoDB に保存
     if full_response:

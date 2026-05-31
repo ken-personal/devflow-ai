@@ -19,8 +19,8 @@ export interface ChatMessage {
 export type SSEEvent =
   | { type: 'agent_step'; data: { step: number; tool?: string } }
   | { type: 'text_chunk'; data: { text: string } }
-  | { type: 'done'; data: Record<string, never> }
-  | { type: 'error'; data: { message: string } };
+  | { type: 'done'; data: { session_id: string; message_id: string; total_tokens: number } }
+  | { type: 'error'; data: { message: string; code?: string } };
 
 export const aiApi = {
   listSessions(): Promise<ChatSession[]> {
@@ -79,9 +79,9 @@ export const aiApi = {
               const raw = line.slice(6).trim();
               if (!raw) continue;
               try {
-                const evt = JSON.parse(raw) as SSEEvent & { session_id?: string };
-                if ('session_id' in evt && evt.session_id) {
-                  onSessionId(evt.session_id as string);
+                const evt = JSON.parse(raw) as SSEEvent;
+                if (evt.type === 'done' && evt.data.session_id) {
+                  onSessionId(evt.data.session_id);
                 }
                 onEvent(evt);
               } catch {
