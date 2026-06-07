@@ -35,8 +35,8 @@ export class TaskService {
       // Member: 自分のタスクのみ
       tasks = await this.taskRepo.listByAssignee(userId);
     } else {
-      // Manager/Admin: 全タスク（project_id必須を推奨するが一覧は許可）
-      tasks = await this.taskRepo.listByAssignee(userId); // フォールバック
+      // Manager/Admin: 全タスク（GSI1 更新日降順、最大500件）
+      tasks = await this.taskRepo.listAll();
     }
 
     // 論理削除済み除外

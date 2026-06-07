@@ -48,6 +48,7 @@ export interface ITaskRepository {
   put(task: Task): Promise<void>;
   get(projectId: string, taskId: string): Promise<Task | null>;
   getByTaskId(taskId: string): Promise<Task | null>;
+  listAll(limit?: number): Promise<Task[]>;
   listByProject(projectId: string): Promise<Task[]>;
   listByAssignee(userId: string): Promise<Task[]>;
   listOverdue(assigneeId: string, nowEpoch: number): Promise<Task[]>;
@@ -93,6 +94,19 @@ export class TaskRepository implements ITaskRepository {
     }));
     if (!result.Item) return null;
     return fromTaskItem(result.Item);
+  }
+
+  // Manager/Admin: 全タスク一覧（GSI1 更新日降順）
+  async listAll(limit = 500): Promise<Task[]> {
+    const result = await this.client.send(new QueryCommand({
+      TableName: this.table,
+      IndexName: GSI.ENTITY_UPDATED,
+      KeyConditionExpression: 'gsi1pk = :gsi1pk',
+      ExpressionAttributeValues: { ':gsi1pk': gsi1pk.task },
+      ScanIndexForward: false,
+      Limit: limit,
+    }));
+    return (result.Items ?? []).map(fromTaskItem);
   }
 
   // AP-05: 案件に紐づくタスク一覧
